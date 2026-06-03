@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# The Ledger — IFRS calculator (South Africa)
 
-## Getting Started
+A teaching ledger for South African accounting students. Describe a transaction in plain English, add the policy choices the entity uses, and The Ledger works through:
 
-First, run the development server:
+- **Journal entries** — properly balanced double entry, each line tagged with the statement it lands on, with a plain-English "why" under every entry.
+- **Effect on the financial statements** — what moves on the SoFP, P&L, SoCE, and SoCF.
+- **Accounting policy note** — ready-to-paste IFRS wording.
+- **Disclosures** — referenced to the exact IAS/IFRS paragraph, with illustrative wording using the figures from this transaction.
+- **South African tax treatment** — income tax (Income Tax Act), deferred tax (IAS 12, with the CGT rate where relevant), and VAT.
+- **Teaching notes** — the trap students fall into for this kind of transaction.
+
+Built on Next.js 16 (App Router) with Google's Gemini 2.5 Pro behind the AI SDK for structured-output reasoning.
+
+## Run it locally
 
 ```bash
+cp .env.example .env.local           # then add your Gemini API key
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Get a Gemini API key at <https://aistudio.google.com/apikey>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Open <http://localhost:3000>.
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+vercel link
+vercel env add GOOGLE_GENERATIVE_AI_API_KEY production
+vercel --prod
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Architecture
+
+```
+app/
+  page.tsx            The form + result page (client)
+  layout.tsx          Fonts (Fraunces / Newsreader / JetBrains Mono) and metadata
+  globals.css         The "paper" aesthetic — ruled background, oxblood margin
+  api/analyze/route.ts  POSTs the transaction + facts to Gemini, returns structured JSON
+components/
+  Result.tsx          Renders the journal entries, statement effects, notes, tax cards
+lib/
+  schema.ts           Zod schema that Gemini must conform to (the contract)
+```
+
+The model is constrained to produce output that matches a Zod schema (`generateObject` from the AI SDK), so the UI can render confidently — every transaction comes back with the same shape.
+
+## Disclaimer
+
+A teaching aid, not advice. The Ledger illustrates how each transaction flows through the records under IFRS as applied in South Africa with common SARS outcomes. Answers are AI-generated and rest on the stated assumptions — always check against the standards, the Income Tax Act and the VAT Act, and your lecturer's guidance.

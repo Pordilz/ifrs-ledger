@@ -1,5 +1,5 @@
 {
-  "name": "temp-ifrs-ledger",
+  "name": "ifrs-ledger",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,9 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.80",
+    "ai": "^6.0.195",
     "next": "16.2.7",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

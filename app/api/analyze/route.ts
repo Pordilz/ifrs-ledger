@@ -1,0 +1,107 @@
+import { generateObject } from "ai";
+import { google } from "@ai-sdk/google";
+import { ledgerSchema } from "@/lib/schema";
+import { NextResponse } from "next/server";
+
+export const maxDuration = 60;
+export const runtime = "nodejs";
+
+const SYSTEM_PROMPT = `You are "The Ledger" — a meticulous IFRS tutor for South African accounting students.
+
+Your job: take a single business transaction and produce a complete teaching worked answer in the JSON shape required by the schema.
+
+Rules of the house:
+1. Apply IFRS as endorsed in South Africa (IAS, IFRS, Interpretations) for all accounting treatment.
+2. Apply the South African Income Tax Act, the VAT Act and (where relevant) the Eighth Schedule for tax. Default company tax rate is 27%, VAT is 15%, CGT inclusion for companies is 80%.
+3. Show double entry that always balances. Use proper account names ("Property, plant and equipment", not "PPE"). Round monetary amounts to two decimals.
+4. For each journal entry, write a short 'explanation' field that teaches WHY the entry is recorded that way — this is the most important field for the student.
+5. Use 'SoFP', 'P&L', 'OCI / Equity', 'SoCE', or 'SoCF' for the 'statement' field on each journal line.
+6. For 'financialStatementImpact', describe net movement on each statement. Use 'increase' / 'decrease' for SoFP/P&L/SoCE, and 'inflow' / 'outflow' for SoCF. Use '—' when there is no effect. Amounts must be formatted as 'R 12 345.67' with a non-breaking space and thin spaces.
+7. List ALL material assumptions you had to make (rate not given, useful life assumed, vendor status, etc.) — students must see what was assumed.
+8. Disclosures must cite the exact paragraph number where possible (e.g. 'IAS 16.73(e)', 'IFRS 15.116'). Each must include illustrative wording plugging the figures from THIS transaction into a real note.
+9. Deferred tax: always state carrying amount vs tax base, the temporary difference, and whether it's a deferred tax asset or liability. If on capital account, use the effective CGT rate (27% × 80% = 21.6%).
+10. Teaching notes: 2–4 sentences on the trap students commonly fall into for this kind of transaction.
+
+Always answer as if the entity is a South African company unless told otherwise.`;
+
+type Body = {
+  description?: string;
+  policies?: string;
+  yearEnd?: string;
+  reportingDate?: string;
+  vendor?: boolean;
+  taxRate?: number;
+  notes?: string;
+};
+
+export async function POST(req: Request) {
+  let body: Body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  if (!body.description || body.description.trim().length < 10) {
+    return NextResponse.json(
+      { error: "Please describe the transaction in at least a sentence or two." },
+      { status: 400 },
+    );
+  }
+
+  const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json(
+      {
+        error:
+          "GOOGLE_GENERATIVE_AI_API_KEY is not set on the server. Add it in Vercel project settings (or .env.local for dev).",
+      },
+      { status: 500 },
+    );
+  }
+  if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GEMINI_API_KEY) {
+    process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
+  }
+
+  const userPrompt = [
+    "## Transaction to work",
+    body.description,
+    "",
+    body.policies ? "## Accounting policy choices stated by the user\n" + body.policies : "",
+    body.yearEnd ? "## Financial year-end\n" + body.yearEnd : "",
+    body.reportingDate ? "## Reporting date for this transaction\n" + body.reportingDate : "",
+    typeof body.vendor === "boolean"
+      ? "## VAT status\n" + (body.vendor ? "The entity IS a registered VAT vendor." : "The entity is NOT a registered VAT vendor.")
+      : "",
+    typeof body.taxRate === "number" && !Number.isNaN(body.taxRate)
+      ? "## Company tax rate to use\n" + body.taxRate + "%"
+      : "",
+    body.notes ? "## Additional notes / facts\n" + body.notes : "",
+    "",
+    "Produce the full teaching answer in the required JSON shape. Be precise with figures and standard references.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  try {
+    const { object } = await generateObject({
+      model: google("gemini-2.5-pro"),
+      schema: ledgerSchema,
+      schemaName: "LedgerOutput",
+      schemaDescription:
+        "A complete IFRS teaching answer for one South African accounting transaction.",
+      system: SYSTEM_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.2,
+    });
+
+    return NextResponse.json(object);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("Gemini error:", message);
+    return NextResponse.json(
+      { error: "The model couldn't return a structured answer.", detail: message },
+      { status: 502 },
+    );
+  }
+}
