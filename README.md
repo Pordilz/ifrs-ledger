@@ -23,6 +23,12 @@ Get a Gemini API key at <https://aistudio.google.com/apikey>.
 
 Open <http://localhost:3000>.
 
+> **Note on the model.** Free-tier Gemini keys can only call **Flash** models — Pro
+> models (`gemini-pro-latest`, `gemini-3.x-pro`) return a `limit: 0` quota error on the
+> free tier. The app defaults to `gemini-flash-latest`, which works on the free tier and
+> is plenty capable for this. Override it with the `GEMINI_MODEL` env var (pin to
+> `gemini-2.5-flash` for a stable GA model, or a Pro model if your key is on a paid plan).
+
 ## Deploy on Vercel
 
 ```bash

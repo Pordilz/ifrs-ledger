@@ -85,7 +85,7 @@ export async function POST(req: Request) {
 
   try {
     const { object } = await generateObject({
-      model: google("gemini-2.5-pro"),
+      model: google(process.env.GEMINI_MODEL || "gemini-flash-latest"),
       schema: ledgerSchema,
       schemaName: "LedgerOutput",
       schemaDescription:
