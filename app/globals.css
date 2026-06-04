@@ -527,6 +527,69 @@ td.eff {
   font-family: var(--font-mono), monospace;
 }
 
+/* Year-by-year (multi-period) tables */
+.year-block {
+  margin-bottom: 26px;
+}
+.year-scroll {
+  overflow-x: auto;
+}
+table.yeartable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fffdf7;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+table.yeartable th {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 10px 14px;
+  border-bottom: 1.5px solid var(--ink);
+  font-weight: 600;
+  white-space: nowrap;
+  text-align: right;
+}
+table.yeartable th.rowhead {
+  text-align: left;
+  min-width: 220px;
+}
+table.yeartable td {
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 15.5px;
+}
+table.yeartable td.rowhead {
+  text-align: left;
+}
+table.yeartable td.num {
+  font-family: var(--font-mono), monospace;
+  font-size: 14px;
+  text-align: right;
+  white-space: nowrap;
+}
+table.yeartable tr:last-child td {
+  border-bottom: none;
+}
+table.yeartable tr.section td {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 600;
+  font-size: 16px;
+  padding-top: 15px;
+  border-bottom: 1px solid var(--rule);
+}
+table.yeartable tr.subheading td {
+  font-weight: 600;
+  color: var(--ink);
+}
+table.yeartable tr.total td {
+  border-top: 2px solid var(--ink);
+  font-weight: 700;
+}
+
 .prose {
   font-size: 17.5px;
 }

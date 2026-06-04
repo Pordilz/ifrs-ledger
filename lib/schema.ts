@@ -34,6 +34,33 @@ const fsItem = z.object({
     .describe("Pre-formatted amount like 'R 500 000.00', or empty string if no figure."),
 });
 
+const periodRow = z.object({
+  label: z
+    .string()
+    .describe(
+      "Row label, e.g. 'Property, plant and equipment', 'Depreciation', 'Cost', 'Net carrying amount'. For heading rows, the statement or note name.",
+    ),
+  values: z
+    .array(z.string())
+    .describe(
+      "One pre-formatted value per period, positionally aligned to `periods` (same order, same length). Use '-' for nil and (brackets) for negatives/expenses, e.g. '(20 000)'. For heading rows leave this an empty array.",
+    ),
+  kind: z
+    .enum(["section", "subheading", "line", "total"])
+    .describe(
+      "'section' = a statement caption like 'Statement of financial position' (no figures); 'subheading' = a grouping like 'Non-current assets' or 'Note x: Property, plant and equipment' (no figures); 'line' = a normal line item with one figure per period; 'total' = a subtotal/total shown in bold with a rule above, e.g. 'Net carrying amount'.",
+    ),
+});
+
+const periodTable = z.object({
+  title: z
+    .string()
+    .describe(
+      "Caption above this table, e.g. 'Financial statement extracts' or 'Notes to the financial statements'.",
+    ),
+  rows: z.array(periodRow),
+});
+
 const disclosure = z.object({
   standard: z
     .string()
@@ -66,6 +93,16 @@ export const ledgerSchema = z.object({
     statementOfChangesInEquity: z.array(fsItem),
     statementOfCashFlows: z.array(fsItem),
   }),
+  periods: z
+    .array(z.string())
+    .describe(
+      "Column headers ONLY when this transaction's effects span more than one reporting period (depreciation over an asset's life, an impairment and later reversal, a lease, loan amortisation, deferred-tax unwinding). Each is a period-end label like '31 Dec 20X1'. Empty array for a single-period transaction.",
+    ),
+  periodTables: z
+    .array(periodTable)
+    .describe(
+      "Multi-year worked tables aligned to `periods`: typically one table of financial-statement extracts (a Statement of financial position section and a Statement of comprehensive income section) and one table of note reconciliations (e.g. a PPE roll-forward of Cost / Accumulated depreciation and impairment / Net carrying amount). Every 'line' or 'total' row's `values` array MUST have exactly one entry per period in `periods`, in the same order. Empty array for a single-period transaction.",
+    ),
   accountingPolicyNote: z
     .string()
     .describe(

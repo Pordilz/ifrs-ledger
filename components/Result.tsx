@@ -165,6 +165,49 @@ export default function Result({ data }: { data: LedgerOutput }) {
         );
       })()}
 
+      {/* Year-by-year view (multi-period transactions only) */}
+      {data.periods?.length > 0 && data.periodTables?.length > 0 && (
+        <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>
+          <h3>Year by year</h3>
+          <div className="rule"></div>
+          <h4>Across the reporting periods</h4>
+          {data.periodTables.map((t, ti) => (
+            <div className="year-block" key={ti}>
+              {t.title && <p className="fs-title">{esc(t.title)}</p>}
+              <div className="year-scroll">
+                <table className="yeartable">
+                  <thead>
+                    <tr>
+                      <th className="rowhead"></th>
+                      {data.periods.map((p, pi) => (
+                        <th className="num" key={pi}>
+                          {esc(p)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {t.rows.map((r, ri) => {
+                      const isHeading = r.kind === "section" || r.kind === "subheading";
+                      return (
+                        <tr key={ri} className={r.kind}>
+                          <td className="rowhead">{esc(r.label)}</td>
+                          {data.periods.map((_, pi) => (
+                            <td className="num" key={pi}>
+                              {isHeading ? "" : esc(r.values?.[pi])}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Accounting policy note */}
       {data.accountingPolicyNote && (
         <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>

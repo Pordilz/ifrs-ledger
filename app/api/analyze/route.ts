@@ -3,7 +3,7 @@ import { google } from "@ai-sdk/google";
 import { ledgerSchema } from "@/lib/schema";
 import { NextResponse } from "next/server";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const runtime = "nodejs";
 
 const SYSTEM_PROMPT = `You are "The Ledger" — a meticulous IFRS tutor for South African accounting students.
@@ -21,6 +21,10 @@ Rules of the house:
 8. Disclosures must cite the exact paragraph number where possible (e.g. 'IAS 16.73(e)', 'IFRS 15.116'). Each must include illustrative wording plugging the figures from THIS transaction into a real note.
 9. Deferred tax: always state carrying amount vs tax base, the temporary difference, and whether it's a deferred tax asset or liability. If on capital account, use the effective CGT rate (27% × 80% = 21.6%).
 10. Teaching notes: 2–4 sentences on the trap students commonly fall into for this kind of transaction.
+11. MULTI-PERIOD VIEW: If the transaction's effects unfold over more than one reporting period (depreciation over an asset's life, an impairment and a later reversal, a lease right-of-use asset, a loan measured at amortised cost, deferred tax unwinding), fill 'periods' with each period-end label (e.g. '31 Dec 20X1', '31 Dec 20X2', …) and build 'periodTables' as a textbook multi-column layout:
+   - One table titled 'Financial statement extracts' with 'section' rows ('Statement of financial position', then 'Statement of comprehensive income'), 'subheading' rows where useful ('Non-current assets'), and 'line' rows for each affected item across the years.
+   - One table titled 'Notes to the financial statements' with the relevant note roll-forward — for PPE: 'Cost', 'Accumulated depreciation and impairment', and a 'total' row 'Net carrying amount'.
+   Each 'line'/'total' row's 'values' array MUST line up one-to-one with 'periods' (same order, same length). Show expenses/negatives in (brackets) and nil as '-'. If the transaction only touches ONE period, leave BOTH 'periods' and 'periodTables' as empty arrays.
 
 Always answer as if the entity is a South African company unless told otherwise.`;
 

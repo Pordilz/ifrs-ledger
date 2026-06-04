@@ -35,6 +35,11 @@ const EXAMPLES: Array<{ title: string; description: string }> = [
     description:
       "On 1 January 2024 the company signed a 5-year lease for office space. Annual lease payments of R 240 000 are payable in arrears. The implicit rate is not readily determinable; the incremental borrowing rate is 10%. There are no incentives or initial direct costs. Year-end is 31 December 2024.",
   },
+  {
+    title: "PPE — impairment & reversal (multi-year)",
+    description:
+      "Entity A buys equipment for R 100 000 on 1 January 20X1, depreciated straight-line over 5 years to a nil residual. At 31 December 20X3 it is impaired by R 4 000. At 31 December 20X4 the recoverable amount recovers and an impairment reversal of R 2 000 is recognised (capped at the depreciated historical cost). Show each year-end from 20X1 to 20X4 (cost model). Tax rate 27%.",
+  },
 ];
 
 export default function Home() {
@@ -72,10 +77,28 @@ export default function Home() {
           notes,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      // Read the body as text first and parse defensively: a platform timeout
+      // or crash returns a plain-text page ("An error occurred…"), not JSON, and
+      // calling res.json() on that throws "Unexpected token 'A'… is not valid JSON".
+      const raw = await res.text();
+      let json: (LedgerOutput & { error?: string; detail?: string }) | null = null;
+      try {
+        json = raw ? JSON.parse(raw) : null;
+      } catch {
+        json = null;
       }
+
+      if (!res.ok || !json) {
+        const timedOut = res.status === 504 || res.status === 408 || res.status === 524;
+        const msg = timedOut
+          ? "The model took too long and the request timed out. Multi-year transactions are heavier — please try again; it usually works on the second attempt."
+          : !json
+            ? `The server returned an unexpected response (HTTP ${res.status}). This is usually a temporary timeout — please try again in a moment.`
+            : json.error || `Request failed (${res.status})`;
+        throw new Error(msg);
+      }
+
       setData(json as LedgerOutput);
       setTimeout(() => {
         document.getElementById("out")?.scrollIntoView({ behavior: "smooth", block: "start" });
