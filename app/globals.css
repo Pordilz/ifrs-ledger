@@ -527,6 +527,232 @@ td.eff {
   font-family: var(--font-mono), monospace;
 }
 
+/* Mode switch */
+.modes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 26px;
+}
+@media (min-width: 640px) {
+  .modes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.mode-btn {
+  text-align: left;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-family: inherit;
+  color: var(--ink);
+}
+.mode-btn:hover {
+  border-color: var(--teal);
+  background: var(--paper-3);
+}
+.mode-btn.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.mode-t {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 600;
+  font-size: 17px;
+}
+.mode-d {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+.mode-btn.active .mode-d {
+  color: #cfc4ab;
+}
+
+/* House style box */
+.style-box {
+  margin-top: 22px;
+  border: 1px dashed var(--rule);
+  border-radius: 3px;
+  background: rgba(239, 228, 204, 0.4);
+}
+.style-toggle {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.style-caret {
+  color: var(--oxblood);
+}
+.style-current {
+  margin-left: auto;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  color: var(--teal);
+  text-transform: none;
+}
+.style-body {
+  padding: 4px 16px 18px 16px;
+  border-top: 1px solid var(--rule-soft);
+}
+.style-presets {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+@media (min-width: 720px) {
+  .style-presets {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+.style-chip {
+  text-align: left;
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: inherit;
+  color: var(--ink);
+}
+.style-chip:hover {
+  border-color: var(--teal);
+}
+.style-chip.active {
+  border-color: var(--teal);
+  border-width: 2px;
+  background: rgba(31, 93, 87, 0.07);
+}
+.sc-l {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 600;
+  font-size: 15px;
+}
+.sc-b {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+.style-reset {
+  margin-top: 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--oxblood);
+  color: var(--oxblood);
+  font-family: inherit;
+  font-size: 14px;
+  font-style: italic;
+  cursor: pointer;
+  padding: 0 0 1px 0;
+}
+.hint-inline {
+  font-size: 14px;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* Question & answer cards */
+.qa {
+  margin-bottom: 22px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: #fffdf7;
+  overflow: hidden;
+}
+.qa-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 18px;
+  background: var(--ink);
+  color: var(--paper);
+  flex-wrap: wrap;
+}
+.qa-n {
+  font-family: var(--font-mono), monospace;
+  font-size: 11px;
+  color: var(--oxblood-soft);
+  flex-shrink: 0;
+}
+.qa-q {
+  font-family: var(--font-fraunces), serif;
+  font-size: 17px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 200px;
+}
+.qa-marks {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--paper);
+  border: 1px solid rgba(243, 234, 215, 0.45);
+  border-radius: 2px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.qa-body {
+  padding: 16px 18px 4px 18px;
+  font-size: 17px;
+}
+.qa-body ul {
+  margin: 0 0 12px 0;
+  padding-left: 22px;
+}
+.qa-body li {
+  margin-bottom: 5px;
+}
+.qa-work {
+  margin: 0 18px 16px 18px;
+  padding: 13px 16px;
+  background: rgba(31, 93, 87, 0.06);
+  border-left: 3px solid var(--teal);
+  border-radius: 0 3px 3px 0;
+}
+.qa-work b {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--teal);
+  display: block;
+  margin-bottom: 7px;
+}
+.qa-work ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.qa-work li {
+  font-family: var(--font-mono), monospace;
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+}
+
 /* Year-by-year (multi-period) tables */
 .year-block {
   margin-bottom: 26px;

@@ -73,6 +73,27 @@ const disclosure = z.object({
     ),
 });
 
+const questionAnswer = z.object({
+  question: z
+    .string()
+    .describe(
+      "The question as it was asked, restated verbatim including its number/letter and mark allocation if given, e.g. 'a) Prepare the journal entries for the year ended 31 December 20X1 (8 marks)'.",
+    ),
+  answer: z
+    .string()
+    .describe(
+      "The full answer to THIS specific question, written as the student should write it. Reference the standard and paragraph where relevant. Use blank lines between paragraphs; use '- ' at the start of a line for bullet points.",
+    ),
+  workings: z
+    .array(z.string())
+    .describe(
+      "Supporting calculations, one per string, e.g. 'W1: Depreciation = (100 000 - 0) / 5 years = 20 000 per year'. Empty array if the question needs no calculations.",
+    ),
+  marks: z
+    .string()
+    .describe("The mark allocation if the question stated one, e.g. '8 marks'. Empty string if not given."),
+});
+
 export const ledgerSchema = z.object({
   transactionSummary: z
     .string()
@@ -86,6 +107,11 @@ export const ledgerSchema = z.object({
   assumptions: z
     .array(z.string())
     .describe("Material assumptions the student should know were made to reach this answer."),
+  questionAnswers: z
+    .array(questionAnswer)
+    .describe(
+      "One entry per specific question the user asked, in the order asked, each answered in full. Empty array if the user asked no specific questions.",
+    ),
   journalEntries: z.array(journalEntry).min(1),
   financialStatementImpact: z.object({
     statementOfFinancialPosition: z.array(fsItem),

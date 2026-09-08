@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { LedgerOutput } from "@/lib/schema";
+import { STYLE_PRESETS, DEFAULT_PRESET } from "@/lib/style";
 import Result from "@/components/Result";
+
+type Mode = "transaction" | "scenario";
+
+const STYLE_KEY = "ledger.style.v1";
 
 const EXAMPLES: Array<{ title: string; description: string }> = [
   {
@@ -43,7 +48,9 @@ const EXAMPLES: Array<{ title: string; description: string }> = [
 ];
 
 export default function Home() {
+  const [mode, setMode] = useState<Mode>("transaction");
   const [description, setDescription] = useState("");
+  const [questions, setQuestions] = useState("");
   const [policies, setPolicies] = useState("");
   const [yearEnd, setYearEnd] = useState("");
   const [reportingDate, setReportingDate] = useState("");
@@ -51,9 +58,35 @@ export default function Home() {
   const [taxRate, setTaxRate] = useState<number>(27);
   const [notes, setNotes] = useState("");
 
+  const [stylePreset, setStylePreset] = useState<string>(DEFAULT_PRESET);
+  const [houseStyle, setHouseStyle] = useState("");
+  const [styleOpen, setStyleOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LedgerOutput | null>(null);
+
+  // Restore the saved house style on this device.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STYLE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { stylePreset?: string; houseStyle?: string };
+      if (typeof saved.stylePreset === "string") setStylePreset(saved.stylePreset);
+      if (typeof saved.houseStyle === "string") setHouseStyle(saved.houseStyle);
+    } catch {
+      /* ignore unreadable/blocked storage */
+    }
+  }, []);
+
+  // Persist it whenever it changes.
+  useEffect(() => {
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify({ stylePreset, houseStyle }));
+    } catch {
+      /* ignore blocked storage */
+    }
+  }, [stylePreset, houseStyle]);
 
   async function onWork() {
     setError(null);
@@ -69,12 +102,15 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           description,
+          questions: mode === "scenario" ? questions : "",
           policies,
           yearEnd,
           reportingDate,
           vendor,
           taxRate,
           notes,
+          stylePreset,
+          houseStyle,
         }),
       });
 
@@ -136,38 +172,99 @@ export default function Home() {
         </div>
       </header>
 
-      <p className="selabel">Try a worked example</p>
-      <div className="examples">
-        {EXAMPLES.map((e, i) => (
-          <button className="example" type="button" key={i} onClick={() => pickExample(i)}>
-            {e.title}
-          </button>
-        ))}
+      <p className="selabel">What are you working?</p>
+      <div className="modes" role="tablist" aria-label="Mode">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "transaction"}
+          className={"mode-btn" + (mode === "transaction" ? " active" : "")}
+          onClick={() => setMode("transaction")}
+        >
+          <span className="mode-t">A single transaction</span>
+          <span className="mode-d">Work one transaction end to end.</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "scenario"}
+          className={"mode-btn" + (mode === "scenario" ? " active" : "")}
+          onClick={() => setMode("scenario")}
+        >
+          <span className="mode-t">Scenario &amp; questions</span>
+          <span className="mode-d">
+            Paste a long scenario plus the questions you were asked — it answers each one.
+          </span>
+        </button>
       </div>
 
+      {mode === "transaction" && (
+        <>
+          <p className="selabel">Try a worked example</p>
+          <div className="examples">
+            {EXAMPLES.map((e, i) => (
+              <button className="example" type="button" key={i} onClick={() => pickExample(i)}>
+                {e.title}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <section className="panel">
-        <h2>The transaction</h2>
+        <h2>{mode === "scenario" ? "The scenario" : "The transaction"}</h2>
         <p className="lead">
-          Describe what happened in plain English, with the figures. Then add any facts about the
-          entity that affect the answer.
+          {mode === "scenario"
+            ? "Paste the whole scenario as it was given to you, then the questions underneath. You still get the full ledger treatment — plus a written answer to every question."
+            : "Describe what happened in plain English, with the figures. Then add any facts about the entity that affect the answer."}
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 18 }}>
           <div className="fld">
             <label htmlFor="desc">
-              Transaction description
+              {mode === "scenario" ? "The scenario" : "Transaction description"}
               <span className="hint">
-                e.g. dates, amounts, parties, what was exchanged — be specific.
+                {mode === "scenario"
+                  ? "Paste the full scenario exactly as given — all the background, dates and figures."
+                  : "e.g. dates, amounts, parties, what was exchanged — be specific."}
               </span>
             </label>
             <textarea
               id="desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="On 1 January 2024 the company bought a delivery vehicle for R 500 000 (excl. VAT) cash. Useful life 5 years, residual nil. Year-end 31 December 2024."
+              placeholder={
+                mode === "scenario"
+                  ? "Entity A is a manufacturing company with a 31 December year-end. On 1 January 20X1 it acquired plant for R 100 000…"
+                  : "On 1 January 2024 the company bought a delivery vehicle for R 500 000 (excl. VAT) cash. Useful life 5 years, residual nil. Year-end 31 December 2024."
+              }
               className={error && description.trim().length < 10 ? "bad" : ""}
+              style={mode === "scenario" ? { minHeight: 220 } : undefined}
             />
           </div>
+
+          {mode === "scenario" && (
+            <div className="fld">
+              <label htmlFor="qs">
+                The questions you were asked
+                <span className="hint">
+                  Paste them as they appear — keep the a) b) c) numbering and any mark allocations.
+                  Each one gets its own written answer.
+                </span>
+              </label>
+              <textarea
+                id="qs"
+                value={questions}
+                onChange={(e) => setQuestions(e.target.value)}
+                placeholder={
+                  "a) Prepare the journal entries for the year ended 31 December 20X1. (8 marks)\n" +
+                  "b) Discuss whether the plant should be impaired at 31 December 20X3. (6 marks)\n" +
+                  "c) Calculate the deferred tax balance at 31 December 20X3. (5 marks)"
+                }
+                style={{ minHeight: 160 }}
+              />
+            </div>
+          )}
 
           <div className="fld">
             <label htmlFor="pol">
@@ -253,6 +350,75 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="style-box">
+          <button
+            type="button"
+            className="style-toggle"
+            aria-expanded={styleOpen}
+            onClick={() => setStyleOpen((v) => !v)}
+          >
+            <span className="style-caret">{styleOpen ? "▾" : "▸"}</span>
+            How the answers are written
+            <span className="style-current">
+              {STYLE_PRESETS.find((p) => p.id === stylePreset)?.label ?? "Balanced"}
+              {houseStyle.trim() ? " · custom" : ""}
+            </span>
+          </button>
+
+          {styleOpen && (
+            <div className="style-body">
+              <div className="style-presets">
+                {STYLE_PRESETS.map((p) => (
+                  <button
+                    type="button"
+                    key={p.id}
+                    className={"style-chip" + (stylePreset === p.id ? " active" : "")}
+                    onClick={() => setStylePreset(p.id)}
+                    title={p.blurb}
+                  >
+                    <span className="sc-l">{p.label}</span>
+                    <span className="sc-b">{p.blurb}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="fld" style={{ marginTop: 16 }}>
+                <label htmlFor="hs">
+                  Your own instructions
+                  <span className="hint">
+                    Anything about how you want answers worded — your lecturer&apos;s layout, terms
+                    to use or avoid, how much working to show. Saved on this device.
+                  </span>
+                </label>
+                <textarea
+                  id="hs"
+                  value={houseStyle}
+                  onChange={(e) => setHouseStyle(e.target.value)}
+                  placeholder={
+                    "e.g. State the principle from the standard first, then apply it to the facts, then conclude.\n" +
+                    "Always show the deferred tax as a table of carrying amount / tax base / temporary difference.\n" +
+                    "Use “statement of financial position”, never “balance sheet”."
+                  }
+                  style={{ minHeight: 120 }}
+                />
+              </div>
+
+              {(houseStyle.trim() || stylePreset !== DEFAULT_PRESET) && (
+                <button
+                  type="button"
+                  className="style-reset"
+                  onClick={() => {
+                    setHouseStyle("");
+                    setStylePreset(DEFAULT_PRESET);
+                  }}
+                >
+                  Reset to default
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <div
           style={{
             display: "flex",
@@ -265,14 +431,17 @@ export default function Home() {
           <button className="calc" onClick={onWork} disabled={loading}>
             {loading ? (
               <>
-                <span className="spinner" /> Working the transaction…
+                <span className="spinner" />{" "}
+                {mode === "scenario" ? "Working the scenario…" : "Working the transaction…"}
               </>
             ) : (
               <>
-                <span className="font-mono">✎</span> Work the transaction
+                <span className="font-mono">✎</span>{" "}
+                {mode === "scenario" ? "Work it and answer the questions" : "Work the transaction"}
               </>
             )}
           </button>
+          {loading && <span className="hint-inline">This can take up to a minute.</span>}
           {error && <span className="warn">{error}</span>}
         </div>
       </section>

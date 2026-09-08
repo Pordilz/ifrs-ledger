@@ -1,6 +1,7 @@
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { ledgerSchema } from "@/lib/schema";
+import { presetInstruction } from "@/lib/style";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 300;
@@ -25,6 +26,7 @@ Rules of the house:
    - One table titled 'Financial statement extracts' with 'section' rows ('Statement of financial position', then 'Statement of comprehensive income'), 'subheading' rows where useful ('Non-current assets'), and 'line' rows for each affected item across the years.
    - One table titled 'Notes to the financial statements' with the relevant note roll-forward — for PPE: 'Cost', 'Accumulated depreciation and impairment', and a 'total' row 'Net carrying amount'.
    Each 'line'/'total' row's 'values' array MUST line up one-to-one with 'periods' (same order, same length). Show expenses/negatives in (brackets) and nil as '-'. If the transaction only touches ONE period, leave BOTH 'periods' and 'periodTables' as empty arrays.
+12. SPECIFIC QUESTIONS: If the user supplies specific questions (a required/asked list, often lettered a), b), c) or numbered), you MUST answer every one of them in 'questionAnswers', in the order asked, one array entry per question — never merge two questions into one entry and never skip one. Restate each question verbatim in 'question'. Put the answer a student should write in 'answer', and every supporting calculation in 'workings' as separate strings ('W1: …', 'W2: …'). If the question carries a mark allocation, record it in 'marks' and scale the depth of the answer to those marks. Answer the question that was actually asked — if it says "discuss", discuss; if it says "calculate", show the calculation; if it says "prepare the journal entries", set the entries out IN FULL inside the 'answer' itself (each account with Dr/Cr and the amount, and the date), never merely refer the reader elsewhere. Every 'answer' must stand on its own as a complete response to that question. Still complete every other field of the schema (journal entries, statement impact, notes, tax) as supporting work. If no specific questions were asked, leave 'questionAnswers' as an empty array.
 
 Always answer as if the entity is a South African company unless told otherwise.`;
 
@@ -36,7 +38,14 @@ type Body = {
   vendor?: boolean;
   taxRate?: number;
   notes?: string;
+  questions?: string;
+  stylePreset?: string;
+  houseStyle?: string;
 };
+
+/** Cap free-text the client controls so a huge paste can't blow up the prompt. */
+const clamp = (s: string | undefined, max: number) =>
+  typeof s === "string" ? s.slice(0, max) : "";
 
 export async function POST(req: Request) {
   let body: Body;
@@ -67,10 +76,18 @@ export async function POST(req: Request) {
     process.env.GOOGLE_GENERATIVE_AI_API_KEY = process.env.GEMINI_API_KEY;
   }
 
+  const questions = clamp(body.questions, 8000).trim();
+  const houseStyle = clamp(body.houseStyle, 2000).trim();
+  const styleRule = presetInstruction(body.stylePreset);
+
   const userPrompt = [
-    "## Transaction to work",
+    "## Scenario / transaction to work",
     body.description,
     "",
+    questions
+      ? "## Specific questions you must answer\nAnswer EVERY question below, in this order, in 'questionAnswers' — one array entry per question:\n\n" +
+        questions
+      : "",
     body.policies ? "## Accounting policy choices stated by the user\n" + body.policies : "",
     body.yearEnd ? "## Financial year-end\n" + body.yearEnd : "",
     body.reportingDate ? "## Reporting date for this transaction\n" + body.reportingDate : "",
@@ -94,7 +111,9 @@ export async function POST(req: Request) {
       schemaName: "LedgerOutput",
       schemaDescription:
         "A complete IFRS teaching answer for one South African accounting transaction.",
-      system: SYSTEM_PROMPT,
+      system: [SYSTEM_PROMPT, styleRule, houseStyle ? "House style set by the student — follow it closely:\n" + houseStyle : ""]
+        .filter(Boolean)
+        .join("\n\n---\n\n"),
       prompt: userPrompt,
       temperature: 0.2,
     });
@@ -103,9 +122,22 @@ export async function POST(req: Request) {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Gemini error:", message);
+
+    // Gemini's free tier regularly returns transient capacity / rate-limit errors.
+    // Those say nothing about the user's scenario, so tell them to just retry.
+    const transient =
+      /high demand|overloaded|unavailable|try again|rate.?limit|quota|resource.?exhausted|429|503/i.test(
+        message,
+      );
+
     return NextResponse.json(
-      { error: "The model couldn't return a structured answer.", detail: message },
-      { status: 502 },
+      {
+        error: transient
+          ? "Gemini is busy right now — this is a temporary capacity limit on the free tier, not a problem with your scenario. Press the button again in a few seconds."
+          : "The model couldn't return a structured answer. Try rewording the scenario, or splitting a very long one into fewer questions.",
+        detail: message,
+      },
+      { status: transient ? 503 : 502 },
     );
   }
 }

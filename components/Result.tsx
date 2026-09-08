@@ -6,6 +6,54 @@ function esc(s: string | undefined | null) {
   return s ?? "";
 }
 
+/** Render **bold** and *italic* spans; everything else stays literal text. */
+function inline(text: string) {
+  return text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g).map((part, i) => {
+    if (/^\*\*[^*\n]+\*\*$/.test(part)) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (/^\*[^*\n]+\*$/.test(part)) return <em key={i}>{part.slice(1, -1)}</em>;
+    return <span key={i}>{part}</span>;
+  });
+}
+
+/**
+ * Split model prose into paragraphs and bullet lists. Single newlines inside a
+ * paragraph are kept as line breaks — the model uses them to lay calculations
+ * out line by line ("Cost: R 900 000 / Less: depreciation …"), and collapsing
+ * them would destroy that structure.
+ */
+function renderProse(text: string) {
+  const blocks = esc(text)
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, bi) => {
+    const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+    const isList = lines.length > 0 && lines.every((l) => /^[-•*]\s+/.test(l));
+
+    if (isList) {
+      return (
+        <ul key={bi}>
+          {lines.map((l, li) => (
+            <li key={li}>{inline(l.replace(/^[-•*]\s+/, ""))}</li>
+          ))}
+        </ul>
+      );
+    }
+
+    return (
+      <p key={bi}>
+        {lines.map((l, li) => (
+          <span key={li}>
+            {li > 0 && <br />}
+            {inline(l)}
+          </span>
+        ))}
+      </p>
+    );
+  });
+}
+
 function classifyEffect(effect: string): { cls: string; arrow: string } {
   const e = (effect || "").toLowerCase();
   if (/incr|inflow/.test(e)) return { cls: "up", arrow: "▲ " };
@@ -59,6 +107,35 @@ export default function Result({ data }: { data: LedgerOutput }) {
           </div>
         )}
       </div>
+
+      {/* Answers to the specific questions asked */}
+      {data.questionAnswers?.length > 0 && (
+        <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>
+          <h3>Answers to the questions asked</h3>
+          <div className="rule"></div>
+          <h4>Question by question</h4>
+          {data.questionAnswers.map((qa, i) => (
+            <div className="qa" key={i}>
+              <div className="qa-head">
+                <span className="qa-n">{String(i + 1).padStart(2, "0")}</span>
+                <span className="qa-q">{esc(qa.question)}</span>
+                {qa.marks && <span className="qa-marks">{esc(qa.marks)}</span>}
+              </div>
+              <div className="qa-body prose">{renderProse(qa.answer)}</div>
+              {qa.workings?.length > 0 && (
+                <div className="qa-work">
+                  <b>Workings</b>
+                  <ol>
+                    {qa.workings.map((w, wi) => (
+                      <li key={wi}>{esc(w)}</li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Journal entries */}
       {data.journalEntries?.length > 0 && (
