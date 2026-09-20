@@ -24,10 +24,23 @@ Get a Gemini API key at <https://aistudio.google.com/apikey>.
 Open <http://localhost:3000>.
 
 > **Note on the model.** Free-tier Gemini keys can only call **Flash** models — Pro
-> models (`gemini-pro-latest`, `gemini-3.x-pro`) return a `limit: 0` quota error on the
-> free tier. The app defaults to `gemini-flash-latest`, which works on the free tier and
-> is plenty capable for this. Override it with the `GEMINI_MODEL` env var (pin to
-> `gemini-2.5-flash` for a stable GA model, or a Pro model if your key is on a paid plan).
+> models (`gemini-pro-latest`, `gemini-3.x-pro`) return a `limit: 0` quota error.
+>
+> Because free-tier Flash models regularly return *"This model is currently
+> experiencing high demand"*, the app doesn't depend on any single one. It tries a
+> chain and fails over automatically:
+>
+> | order | model | role |
+> |---|---|---|
+> | 1 | `gemini-2.5-flash` | Workhorse — reliable, fullest answers |
+> | 2 | `gemini-flash-latest` | Most capable when it has capacity |
+> | 3 | `gemini-3.5-flash-lite` | Fast backstop; thinner answers, but always up |
+>
+> Only if all three fail does the app return an error, and it then says the models are
+> busy rather than blaming your scenario. The model that answered is returned in the
+> `x-ledger-model` response header.
+>
+> Set `GEMINI_MODEL` to put a model of your choice first (the chain still backs it up).
 
 ## Deploy on Vercel
 

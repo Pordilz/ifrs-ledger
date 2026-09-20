@@ -47,6 +47,37 @@ type Body = {
 const clamp = (s: string | undefined, max: number) =>
   typeof s === "string" ? s.slice(0, max) : "";
 
+/**
+ * Models tried in order until one answers. Ordered by AVAILABILITY, not raw
+ * capability: on the free tier the newest models are the congested ones
+ * ("This model is currently experiencing high demand"), while gemini-2.5-flash
+ * has consistently had headroom.
+ *
+ *  1. gemini-2.5-flash     — the workhorse. Reliable, and returns the fullest
+ *                            answers (6 disclosures on the test transaction).
+ *  2. gemini-flash-latest  — newest and most capable when it has capacity.
+ *  3. gemini-3.5-flash-lite — backstop. Very fast and always available, but
+ *                            visibly thinner (1 disclosure on the same test),
+ *                            so it only runs when both above are down.
+ *
+ * Verify a model actually answers before adding it here: gemini-2.0-flash and
+ * gemini-2.5-flash-lite are both retired and fail with "no longer available".
+ *
+ * GEMINI_MODEL, if set, is tried first and these still act as fallbacks.
+ */
+const MODEL_CHAIN = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.5-flash-lite"];
+
+function modelChain(): string[] {
+  const pinned = process.env.GEMINI_MODEL?.trim();
+  return pinned ? [pinned, ...MODEL_CHAIN.filter((m) => m !== pinned)] : [...MODEL_CHAIN];
+}
+
+/** Capacity / rate-limit errors say nothing about the user's input — worth failing over. */
+const isTransient = (message: string) =>
+  /high demand|overloaded|unavailable|try again|rate.?limit|quota|resource.?exhausted|429|503/i.test(
+    message,
+  );
+
 export async function POST(req: Request) {
   let body: Body;
   try {
@@ -104,40 +135,54 @@ export async function POST(req: Request) {
     .filter(Boolean)
     .join("\n\n");
 
-  try {
-    const { object } = await generateObject({
-      model: google(process.env.GEMINI_MODEL || "gemini-flash-latest"),
-      schema: ledgerSchema,
-      schemaName: "LedgerOutput",
-      schemaDescription:
-        "A complete IFRS teaching answer for one South African accounting transaction.",
-      system: [SYSTEM_PROMPT, styleRule, houseStyle ? "House style set by the student — follow it closely:\n" + houseStyle : ""]
-        .filter(Boolean)
-        .join("\n\n---\n\n"),
-      prompt: userPrompt,
-      temperature: 0.2,
-    });
+  const system = [
+    SYSTEM_PROMPT,
+    styleRule,
+    houseStyle ? "House style set by the student — follow it closely:\n" + houseStyle : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n---\n\n");
 
-    return NextResponse.json(object);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("Gemini error:", message);
+  const failures: Array<{ model: string; message: string }> = [];
 
-    // Gemini's free tier regularly returns transient capacity / rate-limit errors.
-    // Those say nothing about the user's scenario, so tell them to just retry.
-    const transient =
-      /high demand|overloaded|unavailable|try again|rate.?limit|quota|resource.?exhausted|429|503/i.test(
-        message,
-      );
+  for (const modelId of modelChain()) {
+    try {
+      const { object } = await generateObject({
+        model: google(modelId),
+        schema: ledgerSchema,
+        schemaName: "LedgerOutput",
+        schemaDescription:
+          "A complete IFRS teaching answer for one South African accounting transaction.",
+        system,
+        prompt: userPrompt,
+        temperature: 0.2,
+        // Keep per-model retries low — the model chain below is the real retry,
+        // and burning three attempts on a busy model just delays the failover.
+        maxRetries: 1,
+      });
 
-    return NextResponse.json(
-      {
-        error: transient
-          ? "Gemini is busy right now — this is a temporary capacity limit on the free tier, not a problem with your scenario. Press the button again in a few seconds."
-          : "The model couldn't return a structured answer. Try rewording the scenario, or splitting a very long one into fewer questions.",
-        detail: message,
-      },
-      { status: transient ? 503 : 502 },
-    );
+      if (failures.length) {
+        console.warn(
+          `Answered by fallback ${modelId} after ${failures.map((f) => f.model).join(", ")} failed.`,
+        );
+      }
+      return NextResponse.json(object, { headers: { "x-ledger-model": modelId } });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Gemini error (${modelId}):`, message);
+      failures.push({ model: modelId, message });
+    }
   }
+
+  // Every model in the chain failed.
+  const allTransient = failures.every((f) => isTransient(f.message));
+  return NextResponse.json(
+    {
+      error: allTransient
+        ? "Every Gemini model is busy right now — that's a free-tier capacity limit, not a problem with your scenario. Give it a minute and press the button again."
+        : "The model couldn't return a structured answer. Try rewording the scenario, or splitting a very long one into fewer questions.",
+      detail: failures.map((f) => `${f.model}: ${f.message}`).join(" | "),
+    },
+    { status: allTransient ? 503 : 502 },
+  );
 }
