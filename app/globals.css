@@ -459,6 +459,27 @@ tr.total td {
   border-top: 2px solid var(--ink);
   font-weight: 700;
 }
+tr.total.unbalanced td {
+  border-top: 2px solid var(--oxblood);
+  color: var(--oxblood);
+}
+.je-warn {
+  padding: 13px 18px;
+  background: rgba(138, 43, 43, 0.09);
+  border-top: 1px solid var(--oxblood);
+  font-size: 15.5px;
+  color: var(--ink);
+}
+.je-warn b {
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+  display: block;
+  margin-bottom: 5px;
+}
+
 .je-exp {
   padding: 13px 18px;
   background: rgba(169, 118, 15, 0.06);
@@ -574,6 +595,103 @@ td.eff {
 }
 .mode-btn.active .mode-d {
   color: #cfc4ab;
+}
+
+/* Level 2 — perspective */
+.tier2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+@media (min-width: 640px) {
+  .tier2 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.persp-btn {
+  text-align: left;
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 11px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: inherit;
+  color: var(--ink);
+}
+.persp-btn:hover {
+  border-color: var(--teal);
+}
+.persp-btn.active {
+  border-color: var(--teal);
+  border-width: 2px;
+  background: rgba(31, 93, 87, 0.08);
+}
+.persp-t {
+  font-family: var(--font-fraunces), serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+.persp-d {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+/* Level 3 — detail */
+.tier3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+  padding: 10px 14px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--teal);
+  border-radius: 0 3px 3px 0;
+}
+.tier3-lab {
+  font-family: var(--font-mono), monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+.tier3-opts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lvl3-btn {
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--paper-3);
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  padding: 5px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lvl3-btn:hover {
+  border-color: var(--teal);
+  color: var(--ink);
+}
+.lvl3-btn.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.tier3-hint {
+  font-size: 13.5px;
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-left: auto;
 }
 
 /* House style box */

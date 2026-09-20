@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import type { LedgerOutput } from "@/lib/schema";
 import { STYLE_PRESETS, DEFAULT_PRESET } from "@/lib/style";
+import {
+  PERSPECTIVES,
+  ACCOUNTING_TAX_OPTIONS,
+  resolveView,
+  type AccountingTax,
+  type Perspective,
+  type ViewSpec,
+} from "@/lib/perspective";
 import Result from "@/components/Result";
 
 type Mode = "transaction" | "scenario";
@@ -49,6 +57,9 @@ const EXAMPLES: Array<{ title: string; description: string }> = [
 
 export default function Home() {
   const [mode, setMode] = useState<Mode>("transaction");
+  const [perspective, setPerspective] = useState<Perspective>("both");
+  const [accountingTax, setAccountingTax] = useState<AccountingTax>("with-vat");
+  const [vat, setVat] = useState(true);
   const [description, setDescription] = useState("");
   const [questions, setQuestions] = useState("");
   const [policies, setPolicies] = useState("");
@@ -65,6 +76,11 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LedgerOutput | null>(null);
+  // The view the displayed result was produced under, so changing the controls
+  // afterwards doesn't re-shape an answer that was generated differently.
+  const [resultView, setResultView] = useState<ViewSpec | null>(null);
+
+  const view = resolveView(perspective, accountingTax, vat);
 
   // Restore the saved house style on this device.
   useEffect(() => {
@@ -111,6 +127,9 @@ export default function Home() {
           notes,
           stylePreset,
           houseStyle,
+          perspective,
+          accountingTax,
+          vat,
         }),
       });
 
@@ -136,6 +155,7 @@ export default function Home() {
       }
 
       setData(json as LedgerOutput);
+      setResultView(view);
       setTimeout(() => {
         document.getElementById("out")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
@@ -196,6 +216,70 @@ export default function Home() {
             Paste a long scenario plus the questions you were asked — it answers each one.
           </span>
         </button>
+      </div>
+
+      <p className="selabel">Through which lens?</p>
+      <div className="tier2">
+        {PERSPECTIVES.map((p) => (
+          <button
+            type="button"
+            key={p.id}
+            className={"persp-btn" + (perspective === p.id ? " active" : "")}
+            onClick={() => setPerspective(p.id)}
+            aria-pressed={perspective === p.id}
+          >
+            <span className="persp-t">{p.label}</span>
+            <span className="persp-d">{p.blurb}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="tier3">
+        <span className="tier3-lab">
+          {perspective === "accounting" ? "Tax implications" : "VAT"}
+        </span>
+        {perspective === "accounting" ? (
+          <div className="tier3-opts">
+            {ACCOUNTING_TAX_OPTIONS.map((o) => (
+              <button
+                type="button"
+                key={o.id}
+                className={"lvl3-btn" + (accountingTax === o.id ? " active" : "")}
+                onClick={() => setAccountingTax(o.id)}
+                aria-pressed={accountingTax === o.id}
+                title={o.blurb}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="tier3-opts">
+            <button
+              type="button"
+              className={"lvl3-btn" + (vat ? " active" : "")}
+              onClick={() => setVat(true)}
+              aria-pressed={vat}
+            >
+              With VAT
+            </button>
+            <button
+              type="button"
+              className={"lvl3-btn" + (!vat ? " active" : "")}
+              onClick={() => setVat(false)}
+              aria-pressed={!vat}
+            >
+              Without VAT
+            </button>
+          </div>
+        )}
+        <span className="tier3-hint">
+          {perspective === "accounting"
+            ? ACCOUNTING_TAX_OPTIONS.find((o) => o.id === accountingTax)?.blurb
+            : vat
+              ? "Input / output VAT is raised on the entries."
+              : "Every amount is treated as excluding VAT."}
+        </span>
       </div>
 
       {mode === "transaction" && (
@@ -323,15 +407,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="fld check">
-            <input
-              id="vendor"
-              type="checkbox"
-              checked={vendor}
-              onChange={(e) => setVendor(e.target.checked)}
-            />
-            <label htmlFor="vendor">The entity is a registered VAT vendor (input VAT claimable)</label>
-          </div>
+          {view.includeVat && (
+            <div className="fld check">
+              <input
+                id="vendor"
+                type="checkbox"
+                checked={vendor}
+                onChange={(e) => setVendor(e.target.checked)}
+              />
+              <label htmlFor="vendor">
+                The entity is a registered VAT vendor (input VAT claimable)
+              </label>
+            </div>
+          )}
 
           <div className="fld">
             <label htmlFor="notes">
@@ -446,7 +534,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="out">{data && <Result data={data} />}</section>
+      <section id="out">{data && <Result data={data} view={resultView} />}</section>
 
       <footer className="fine">
         <b>A teaching aid, not advice.</b> The Ledger illustrates how each transaction flows through

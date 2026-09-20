@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { ledgerSchema } from "@/lib/schema";
 import { presetInstruction } from "@/lib/style";
+import { resolveView, viewInstruction, type AccountingTax, type Perspective } from "@/lib/perspective";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 300;
@@ -14,7 +15,7 @@ Your job: take a single business transaction and produce a complete teaching wor
 Rules of the house:
 1. Apply IFRS as endorsed in South Africa (IAS, IFRS, Interpretations) for all accounting treatment.
 2. Apply the South African Income Tax Act, the VAT Act and (where relevant) the Eighth Schedule for tax. Default company tax rate is 27%, VAT is 15%, CGT inclusion for companies is 80%.
-3. Show double entry that always balances. Use proper account names ("Property, plant and equipment", not "PPE"). Round monetary amounts to two decimals.
+3. EVERY journal entry MUST balance: the total of the debit column must equal the total of the credit column, exactly, for each entry on its own. Before you output an entry, add up both columns and check. An entry with a debit total of 0, or with only one leg, is always wrong — if you find yourself writing one, you have either omitted the contra account or should not be raising the entry at all. Use proper account names ("Property, plant and equipment", not "PPE"). Round monetary amounts to two decimals.
 4. For each journal entry, write a short 'explanation' field that teaches WHY the entry is recorded that way — this is the most important field for the student.
 5. Use 'SoFP', 'P&L', 'OCI / Equity', 'SoCE', or 'SoCF' for the 'statement' field on each journal line.
 6. For 'financialStatementImpact', describe net movement on each statement. Use 'increase' / 'decrease' for SoFP/P&L/SoCE, and 'inflow' / 'outflow' for SoCF. Use '—' when there is no effect. Amounts must be formatted as 'R 12 345.67' with a non-breaking space and thin spaces.
@@ -41,6 +42,9 @@ type Body = {
   questions?: string;
   stylePreset?: string;
   houseStyle?: string;
+  perspective?: Perspective;
+  accountingTax?: AccountingTax;
+  vat?: boolean;
 };
 
 /** Cap free-text the client controls so a huge paste can't blow up the prompt. */
@@ -110,6 +114,11 @@ export async function POST(req: Request) {
   const questions = clamp(body.questions, 8000).trim();
   const houseStyle = clamp(body.houseStyle, 2000).trim();
   const styleRule = presetInstruction(body.stylePreset);
+  const view = resolveView(
+    body.perspective ?? "both",
+    body.accountingTax ?? "with-vat",
+    body.vat !== false,
+  );
 
   const userPrompt = [
     "## Scenario / transaction to work",
@@ -122,7 +131,7 @@ export async function POST(req: Request) {
     body.policies ? "## Accounting policy choices stated by the user\n" + body.policies : "",
     body.yearEnd ? "## Financial year-end\n" + body.yearEnd : "",
     body.reportingDate ? "## Reporting date for this transaction\n" + body.reportingDate : "",
-    typeof body.vendor === "boolean"
+    view.includeVat && typeof body.vendor === "boolean"
       ? "## VAT status\n" + (body.vendor ? "The entity IS a registered VAT vendor." : "The entity is NOT a registered VAT vendor.")
       : "",
     typeof body.taxRate === "number" && !Number.isNaN(body.taxRate)
@@ -137,6 +146,7 @@ export async function POST(req: Request) {
 
   const system = [
     SYSTEM_PROMPT,
+    viewInstruction(view),
     styleRule,
     houseStyle ? "House style set by the student — follow it closely:\n" + houseStyle : "",
   ]

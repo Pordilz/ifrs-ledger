@@ -9,7 +9,33 @@ A teaching ledger for South African accounting students. Describe a transaction 
 - **South African tax treatment** — income tax (Income Tax Act), deferred tax (IAS 12, with the CGT rate where relevant), and VAT.
 - **Teaching notes** — the trap students fall into for this kind of transaction.
 
-Built on Next.js 16 (App Router) with Google's Gemini 2.5 Pro behind the AI SDK for structured-output reasoning.
+Built on Next.js 16 (App Router) with Google's Gemini behind the AI SDK for structured-output reasoning.
+
+## Choosing what you get
+
+Three tiers of controls narrow the answer to what you actually need:
+
+**1 · Mode — what are you working?**
+
+| | |
+|---|---|
+| **A single transaction** | Work one transaction end to end. |
+| **Scenario & questions** | Paste a long scenario plus the questions you were asked. You get the full treatment *and* a written answer to every question, with marks and workings. |
+
+**2 · Perspective — through which lens?**
+
+| | |
+|---|---|
+| **Accounting** | IFRS / IAS treatment: recognition, measurement, policy note, disclosures. |
+| **Tax** | The SARS view: allowances, taxable income, Income Tax Act sections. Drops the IFRS policy note and note disclosures. |
+| **Both** *(default)* | The full picture, and how the two interact. |
+
+**3 · Detail** — depends on the lens:
+
+- **Tax** or **Both** → *With VAT* / *Without VAT*.
+- **Accounting** → *No tax* (pure IFRS, no deferred tax, no VAT) · *Tax, without VAT* · *Tax, with VAT*.
+
+Choosing "Without VAT" or "No tax" doesn't just hide VAT — amounts are treated as VAT-exclusive and no VAT lines are raised at all.
 
 ## Run it locally
 

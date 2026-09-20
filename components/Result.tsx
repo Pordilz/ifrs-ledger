@@ -1,6 +1,7 @@
 "use client";
 
 import type { LedgerOutput } from "@/lib/schema";
+import type { ViewSpec } from "@/lib/perspective";
 
 function esc(s: string | undefined | null) {
   return s ?? "";
@@ -70,9 +71,24 @@ function fmtAmount(n: number | null | undefined): string {
   });
 }
 
-export default function Result({ data }: { data: LedgerOutput }) {
+export default function Result({
+  data,
+  view,
+}: {
+  data: LedgerOutput;
+  view?: ViewSpec | null;
+}) {
   let delay = 0;
   const nextDelay = () => (delay += 0.09).toFixed(2);
+
+  // A tax-only answer isn't about IFRS presentation, so the policy note and the
+  // note disclosures don't belong in it. Default to showing everything when the
+  // view is unknown.
+  const taxOnly = view?.perspective === "tax";
+  const showAccountingNotes = !taxOnly;
+  const hasTax =
+    Boolean(data.tax) &&
+    Boolean(data.tax.incomeTax || data.tax.deferredTax || data.tax.vat);
 
   const fsMap: Array<[keyof LedgerOutput["financialStatementImpact"], string]> = [
     ["statementOfFinancialPosition", "Statement of financial position"],
@@ -144,8 +160,13 @@ export default function Result({ data }: { data: LedgerOutput }) {
           <div className="rule"></div>
           <h4>The double entry</h4>
           {data.journalEntries.map((je, idx) => {
-            let dT = 0;
-            let cT = 0;
+            // Totalled up front (not accumulated mid-render) so the balance
+            // check is reliable. The model does occasionally emit a one-legged
+            // entry, and this is a double-entry teaching tool — a broken entry
+            // must never be shown as if it were correct.
+            const dT = je.lines.reduce((s, l) => s + (l.debit || 0), 0);
+            const cT = je.lines.reduce((s, l) => s + (l.credit || 0), 0);
+            const balanced = Math.abs(dT - cT) < 0.005;
             return (
               <div className="je" key={idx}>
                 <div className="je-head">
@@ -163,8 +184,6 @@ export default function Result({ data }: { data: LedgerOutput }) {
                   <tbody>
                     {je.lines.map((l, i) => {
                       const isC = l.credit !== null && l.credit !== undefined;
-                      if (typeof l.debit === "number") dT += l.debit;
-                      if (typeof l.credit === "number") cT += l.credit;
                       return (
                         <tr key={i}>
                           <td className={"acct" + (isC ? " credit-acct" : "")}>
@@ -179,7 +198,7 @@ export default function Result({ data }: { data: LedgerOutput }) {
                       );
                     })}
                     {(dT > 0 || cT > 0) && (
-                      <tr className="total">
+                      <tr className={"total" + (balanced ? "" : " unbalanced")}>
                         <td className="acct">Total</td>
                         <td className="num debit">{fmtAmount(dT)}</td>
                         <td className="num credit">{fmtAmount(cT)}</td>
@@ -187,6 +206,14 @@ export default function Result({ data }: { data: LedgerOutput }) {
                     )}
                   </tbody>
                 </table>
+                {!balanced && (
+                  <div className="je-warn">
+                    <b>Check this entry</b>
+                    This entry does not balance — debits of {fmtAmount(dT)} against credits of{" "}
+                    {fmtAmount(cT)}, a difference of {fmtAmount(Math.abs(dT - cT))}. The model got
+                    this one wrong; don&apos;t copy it down. Try working the transaction again.
+                  </div>
+                )}
                 {je.explanation && (
                   <div className="je-exp">
                     <b>Why</b>
@@ -286,7 +313,7 @@ export default function Result({ data }: { data: LedgerOutput }) {
       )}
 
       {/* Accounting policy note */}
-      {data.accountingPolicyNote && (
+      {showAccountingNotes && data.accountingPolicyNote && (
         <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>
           <h3>Accounting policy note</h3>
           <div className="rule"></div>
@@ -297,7 +324,7 @@ export default function Result({ data }: { data: LedgerOutput }) {
       )}
 
       {/* Disclosures */}
-      {data.disclosures?.length > 0 && (
+      {showAccountingNotes && data.disclosures?.length > 0 && (
         <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>
           <h3>Notes &amp; disclosures required</h3>
           <div className="rule"></div>
@@ -320,7 +347,7 @@ export default function Result({ data }: { data: LedgerOutput }) {
       )}
 
       {/* Tax */}
-      {data.tax && (
+      {hasTax && (
         <div className="sec" style={{ animationDelay: nextDelay() + "s" }}>
           <h3>South African tax treatment</h3>
           <div className="rule"></div>
